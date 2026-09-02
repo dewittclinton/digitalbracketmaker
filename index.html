@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Bracket Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f9fafb',
+                            100: '#f3f4f6',
+                            800: '#1f2937',
+                            900: '#111827',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+        
+        .bracket-connector {
+            position: relative;
+        }
+        .bracket-connector::after {
+            content: '';
+            position: absolute;
+            right: -1rem;
+            top: 50%;
+            width: 1rem;
+            border-top: 1px solid #d1d5db;
+        }
+    </style>
+</head>
+<body class="bg-brand-50 text-gray-800 font-sans min-h-screen">
+
+    <!-- Header Wrapper (Sticky) -->
+    <div class="sticky top-0 z-20 w-full shadow-sm">
+        
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight text-brand-900 cursor-pointer" onclick="resetApp()">Digital Bracket Maker</h1>
+            <div class="flex gap-3">
+                <button id="navDashboardBtn" onclick="showDashboard()" class="text-sm font-medium text-brand-900 hover:text-white border border-brand-900 hover:bg-brand-900 px-3 py-1.5 rounded transition">
+                    My Dashboard
+                </button>
+            </div>
+        </header>
+        
+    </div>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto p-6" id="app-container">
+        
+        <!-- VIEW: WELCOME -->
+        <div id="view-welcome" class="flex flex-col items-center justify-center pt-16 animate-fade-in">
+            <h2 class="text-4xl font-extrabold text-brand-900 mb-4 text-center">Manage Your Tournaments</h2>
+            <p class="text-lg text-gray-500 mb-10 text-center max-w-xl">
+                Create custom knockout brackets or round-robin leagues in seconds. No sign-ups required. Everything runs directly in your browser.
+            </p>
+            
+            <!-- Error message for max tournaments -->
+            <div id="welcome-error" class="hidden w-full max-w-2xl bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-center font-medium shadow-sm"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                <!-- Round Robin Card -->
+                <button onclick="startSetup('league')" class="group flex flex-col items-center p-8 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-gray-400 transition-all text-left w-full">
+                    <svg class="w-12 h-12 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Round-Robin League</h3>
+                    <p class="text-gray-500 text-sm text-center">Every team plays each other. Standings are calculated by points and goal difference.</p>
+                </button>
+
+                <!-- Bracket Card -->
+                <button onclick="startSetup('bracket')" class="group flex flex-col items-center p-8 bg-white border border-gray-200 rounded-xl hover:shadow-md hover:border-gray-400 transition-all text-left w-full">
+                    <svg class="w-12 h-12 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Knockout Bracket</h3>
+                    <p class="text-gray-500 text-sm text-center">Classic elimination tournament. Includes options for aggregate (two-legged) scoring.</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW: SETUP -->
+        <div id="view-setup" class="hidden animate-fade-in max-w-3xl mx-auto">
+            <div class="mb-8">
+                <h2 id="setup-title" class="text-3xl font-bold text-gray-900 mb-2">Tournament Setup</h2>
+                <p class="text-gray-500">Add your teams or players, customize the settings, and generate your schedule.</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                <h3 class="font-bold text-lg mb-4">Tournament Details</h3>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tournament Name</label>
+                    <input type="text" id="tourney-name-input" placeholder="e.g. Summer Cup 2026" class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent">
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                <h3 class="font-bold text-lg mb-4">Add Participants</h3>
+                <form id="team-form" class="flex flex-col sm:flex-row gap-2 mb-4" onsubmit="addTeam(event)">
+                    <input type="text" id="team-input" placeholder="Enter player or team name..." class="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent" required autocomplete="off">
+                    <button type="submit" class="bg-brand-900 text-white px-6 py-2 rounded hover:bg-gray-800 font-medium transition shrink-0">Add</button>
+                </form>
+                
+                <div id="teams-list" class="flex flex-wrap gap-2 min-h-[50px] p-2 bg-gray-50 rounded border border-gray-100">
+                    <p class="text-sm text-gray-400 italic w-full text-center mt-1" id="no-teams-msg">No participants added yet.</p>
+                </div>
+                <div class="mt-2 text-sm text-gray-500 text-right">Total: <span id="team-count" class="font-bold text-gray-900">0</span></div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8" id="settings-container">
+                <h3 class="font-bold text-lg mb-4">Settings</h3>
+                
+                <!-- League specific settings -->
+                <div id="league-settings" class="hidden">
+                    <label class="flex items-center space-x-3 cursor-pointer mb-2">
+                        <input type="checkbox" id="setting-play-twice" class="form-checkbox h-5 w-5 text-gray-900 rounded border-gray-300 focus:ring-gray-500">
+                        <span class="text-gray-700 font-medium">Play each opponent twice (Home & Away)</span>
+                    </label>
+                    <p class="text-sm text-gray-500 ml-8">Standard rules applied: 3 points for a win, 1 for a draw, 0 for a loss. Sorted by Points, then Goal Difference, then Goals For.</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4">
+                <button onclick="resetApp()" class="px-6 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded font-medium transition">Cancel</button>
+                <button onclick="generateTournament()" id="generate-btn" class="px-6 py-2 bg-brand-900 text-white rounded font-medium hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>Generate Tournament</button>
+            </div>
+        </div>
+
+        <!-- VIEW: TOURNAMENT (ACTIVE) -->
+        <div id="view-tournament" class="hidden animate-fade-in">
+            
+            <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-4">
+                <div>
+                    <h2 id="tourney-title" class="text-3xl font-bold text-gray-900">Tournament Active</h2>
+                    <p id="tourney-subtitle" class="text-gray-500 text-sm mt-1">Manage scores below to update the standings.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="save-status" class="text-sm text-green-600 font-medium hidden mr-2">Saved!</span>
+                    <button onclick="saveTournament()" class="text-sm border border-brand-900 text-brand-900 hover:bg-brand-50 px-3 py-1.5 rounded transition font-medium">Save Progress</button>
+                    <button onclick="exportData()" class="text-sm border border-gray-300 bg-white hover:bg-gray-50 px-3 py-1.5 rounded transition">Copy Results</button>
+                </div>
+            </div>
+
+            <!-- Visualization Area (Bracket OR League Table) -->
+            <div id="tourney-visualization" class="bg-white border border-gray-200 rounded-lg shadow-sm mb-8 overflow-x-auto p-6">
+                <!-- Renders here dynamically -->
+            </div>
+
+            <!-- Score Input Area -->
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 rounded-t-lg">
+                    <h3 class="font-bold text-gray-800 text-lg">Match Results Entry</h3>
+                </div>
+                <div id="tourney-matches" class="p-6">
+                    <!-- Score inputs render here dynamically -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- VIEW: DASHBOARD -->
+        <div id="view-dashboard" class="hidden animate-fade-in max-w-4xl mx-auto pt-8">
+            <div class="flex justify-between items-end mb-8 border-b border-gray-200 pb-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-900">My Dashboard</h2>
+                    <p class="text-gray-500 text-sm mt-1">Access your previously saved tournaments.</p>
+                </div>
+                <button onclick="resetApp()" class="text-sm border border-gray-300 bg-white hover:bg-gray-50 px-3 py-1.5 rounded transition">Create New</button>
+            </div>
+            
+            <div id="dashboard-loading" class="text-center text-gray-500 py-12 hidden">
+                <svg class="animate-spin h-8 w-8 mx-auto text-gray-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading your tournaments...
+            </div>
+
+            <div id="dashboard-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dashboard items populate here -->
+            </div>
+            
+            <div id="dashboard-empty" class="text-center bg-white border border-gray-200 rounded-xl py-16 hidden">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-1">No saved tournaments</h3>
+                <p class="text-gray-500 mb-6">You haven't saved any brackets or leagues yet.</p>
+                <button onclick="resetApp()" class="px-6 py-2 bg-brand-900 text-white rounded font-medium hover:bg-gray-800 transition">Create One Now</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Links -->
+    <footer class="mt-8 border-t border-gray-200 py-10 text-center max-w-6xl mx-auto w-full">
+        <div class="flex flex-col items-center justify-center gap-6 text-sm font-medium text-gray-500">
+            
+            <!-- Emphasized Feedback Box -->
+            <div class="bg-blue-50 border border-blue-200 p-6 rounded-xl shadow-sm text-center max-w-lg w-full">
+                <h4 class="text-blue-900 font-bold text-lg mb-2">Help Us Improve! 🚀</h4>
+                <p class="text-blue-700 text-sm mb-4">We want to make Digital Bracket Maker the absolute best tool for you. Found a bug, or have a cool feature idea? We read every message!</p>
+                <button onclick="openFeedback()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md flex items-center justify-center gap-2 mx-auto transform hover:scale-105 duration-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    Click here to leave Feedback
+                </button>
+            </div>
+
+            <button onclick="openSubscribe()" class="hover:text-brand-900 transition flex items-center gap-2 mt-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                Get Email Updates
+            </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-8">&copy; 2026 Digital Bracket Maker</p>
+    </footer>
+
+    <!-- Feedback Modal -->
+    <div id="modal-feedback" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+            <button onclick="closeFeedback()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">&times;</button>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Send Feedback</h3>
+            <p class="text-sm text-gray-500 mb-4">Have an idea or found a bug? Let us know!</p>
+            <form onsubmit="submitFeedback(event)">
+                <textarea id="feedback-text" rows="4" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-gray-400 focus:outline-none mb-4" placeholder="Type your message here..." required></textarea>
+                <div class="flex items-center justify-between">
+                    <span id="feedback-status" class="text-sm hidden font-medium"></span>
+                    <button type="submit" id="feedback-btn" class="bg-brand-900 text-white px-5 py-2 rounded font-medium hover:bg-gray-800 transition ml-auto">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subscribe Modal -->
+    <div id="modal-subscribe" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative">
+            <button onclick="closeSubscribe()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">&times;</button>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Stay Updated</h3>
+            <p class="text-sm text-gray-500 mb-4">Enter your email to receive news and updates about new features.</p>
+            <form onsubmit="submitSubscribe(event)">
+                <input type="email" id="subscribe-email" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-gray-400 focus:outline-none mb-4" placeholder="your.email@example.com" required>
+                <div class="flex items-center justify-between">
+                    <span id="subscribe-status" class="text-sm hidden font-medium"></span>
+                    <button type="submit" id="subscribe-btn" class="bg-brand-900 text-white px-5 py-2 rounded font-medium hover:bg-gray-800 transition ml-auto">Subscribe</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Share Reminder Pop-up (Shows after 10 minutes) -->
+    <div id="share-popup" class="fixed bottom-6 right-6 max-w-sm bg-white border border-brand-200 shadow-xl rounded-xl p-5 z-50 transform translate-y-[150%] opacity-0 transition-all duration-500 flex flex-col gap-3 pointer-events-none">
+        <button onclick="closeSharePopup()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition">&times;</button>
+        <div class="flex items-start gap-3 mt-1">
+            <div class="bg-brand-100 p-2 rounded-lg text-brand-900 shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+            </div>
+            <div>
+                <h4 class="font-bold text-gray-900 text-sm">Enjoying the app?</h4>
+                <p class="text-xs text-gray-600 mt-1">Please consider sharing Digital Bracket Maker with friends and fellow tournament organizers!</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE INIT ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let currentUser = null;
+
+        const initAuth = async () => {
+            try { await signInAnonymously(auth); } 
+            catch (e) { console.error("Anonymous auth failed", e); }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user && state.view === 'dashboard') {
+                loadDashboard();
+            }
+        });
+
+        // --- STATE MANAGEMENT ---
+        const state = {
+            id: null,
+            name: '',
+            view: 'welcome', // welcome, setup, tournament, dashboard
+            type: null, // 'league' or 'bracket'
+            teams: [],
+            options: { playTwice: false },
+            roundAggregate: {}, // Stores 2-legged preference per round e.g. {1: true, 2: false}
+            matches: [], // Array of match objects
+            bracketNodes: [], // Used for knockout tree rendering
+            standings: [] // Used for league table
+        };
+
+        // --- NAVIGATION & VIEWS ---
+        function showView(viewId) {
+            state.view = viewId;
+            ['view-welcome', 'view-setup', 'view-tournament', 'view-dashboard'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        function resetApp() {
+            state.id = null;
+            state.name = '';
+            state.type = null;
+            state.teams = [];
+            state.options = { playTwice: false };
+            state.roundAggregate = {};
+            state.matches = [];
+            state.bracketNodes = [];
+            state.standings = [];
+            
+            if(document.getElementById('setting-play-twice')) document.getElementById('setting-play-twice').checked = false;
+            document.getElementById('tourney-name-input').value = '';
+            document.getElementById('welcome-error').classList.add('hidden');
+            updateTeamListUI();
+            showView('view-welcome');
+        }
+
+        async function startSetup(type) {
+            // Check if they are at the 5 tournament limit before letting them start
+            if (currentUser) {
+                const basePath = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'tournaments');
+                try {
+                    const querySnapshot = await getDocs(basePath);
+                    if (querySnapshot.size >= 5) {
+                        const errDiv = document.getElementById('welcome-error');
+                        errDiv.innerText = "No, you have the maximum 5 tournaments. Please delete one from your dashboard.";
+                        errDiv.classList.remove('hidden');
+                        setTimeout(() => errDiv.classList.add('hidden'), 5000); // Hide after 5 seconds
+                        return; // Prevent going to the setup screen
+                    }
+                } catch (e) {
+                    console.error("Error checking tournament limit", e);
+                }
+            }
+
+            state.type = type;
+            state.teams = [];
+            updateTeamListUI();
+            
+            document.getElementById('setup-title').innerText = type === 'league' ? 'League Setup' : 'Bracket Setup';
+            document.getElementById('league-settings').classList.toggle('hidden', type !== 'league');
+            
+            showView('view-setup');
+            document.getElementById('team-input').focus();
+        }
+
+        // --- SETUP LOGIC ---
+        function addTeam(e) {
+            e.preventDefault();
+            const input = document.getElementById('team-input');
+            const name = input.value.trim();
+            
+            if (name && !state.teams.includes(name)) {
+                state.teams.push(name);
+                input.value = '';
+                updateTeamListUI();
+            } else if (state.teams.includes(name)) {
+                const btn = document.getElementById('generate-btn');
+                const origText = btn.innerText;
+                btn.innerText = "Team already exists!";
+                btn.classList.add('bg-red-600');
+                setTimeout(() => {
+                    btn.innerText = origText;
+                    btn.classList.remove('bg-red-600');
+                }, 2000);
+            }
+        }
+
+        function removeTeam(index) {
+            state.teams.splice(index, 1);
+            updateTeamListUI();
+        }
+
+        function updateTeamListUI() {
+            const list = document.getElementById('teams-list');
+            const count = document.getElementById('team-count');
+            const generateBtn = document.getElementById('generate-btn');
+
+            if (state.teams.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-400 italic w-full text-center mt-1" id="no-teams-msg">No participants added yet.</p>';
+            } else {
+                list.innerHTML = '';
+                state.teams.forEach((team, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'bg-white border border-gray-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 shadow-sm';
+                    el.innerHTML = `
+                        ${team}
+                        <button onclick="removeTeam(${index})" class="text-gray-400 hover:text-red-500 font-bold ml-1 transition">&times;</button>
+                    `;
+                    list.appendChild(el);
+                });
+            }
+
+            count.innerText = state.teams.length;
+            // Validation rules: Min 2 teams for bracket, Min 3 for league (though 2 is technically a 1-match league)
+            generateBtn.disabled = state.teams.length < 2;
+        }
+
+        // --- TOURNAMENT GENERATION ---
+        function generateTournament() {
+            state.name = document.getElementById('tourney-name-input').value.trim() || (state.type === 'league' ? 'My League' : 'My Bracket');
+
+            if (state.type === 'bracket') {
+                generateBracket();
+            } else {
+                state.options.playTwice = document.getElementById('setting-play-twice').checked;
+                generateLeague();
+            }
+
+            document.getElementById('tourney-title').innerText = state.name;
+            document.getElementById('tourney-subtitle').innerText = state.type === 'league' ? 'Round-Robin League' : 'Knockout Bracket';
+            
+            showView('view-tournament');
+            renderTournament();
+        }
+
+        function generateLeague() {
+            state.matches = [];
+            let teams = [...state.teams];
+            
+            // Add a dummy 'Bye' if odd number of teams
+            if (teams.length % 2 !== 0) {
+                teams.push('Bye');
+            }
+
+            const numRounds = teams.length - 1;
+            const matchesPerRound = teams.length / 2;
+            let matchId = 1;
+            
+            let firstHalfMatches = [];
+
+            // Circle method for round-robin schedule
+            for (let round = 0; round < numRounds; round++) {
+                for (let match = 0; match < matchesPerRound; match++) {
+                    const home = teams[match];
+                    const away = teams[teams.length - 1 - match];
+                    
+                    if (home !== 'Bye' && away !== 'Bye') {
+                        firstHalfMatches.push({
+                            id: matchId++,
+                            round: round + 1,
+                            home: home,
+                            away: away,
+                            homeScore: null,
+                            awayScore: null,
+                            isFinished: false
+                        });
+                    }
+                }
+                // Rotate array (keep first element fixed)
+                teams.splice(1, 0, teams.pop());
+            }
+            
+            state.matches = [...firstHalfMatches];
+
+            // Add the second half of the season if "Play Twice" is checked
+            if (state.options.playTwice) {
+                firstHalfMatches.forEach(m => {
+                    state.matches.push({
+                        id: matchId++,
+                        round: m.round + numRounds,
+                        home: m.away, // Swap Home & Away
+                        away: m.home,
+                        homeScore: null,
+                        awayScore: null,
+                        isFinished: false
+                    });
+                });
+            }
+            
+            calculateLeagueStandings();
+        }
+
+        function generateBracket() {
+            state.matches = [];
+            state.bracketNodes = [];
+            const numTeams = state.teams.length;
+            
+            // Find next power of 2
+            const powerOfTwo = Math.pow(2, Math.ceil(Math.log2(numTeams)));
+            const numByes = powerOfTwo - numTeams;
+            const totalRounds = Math.log2(powerOfTwo);
+            
+            // Create bracket structure mapping
+            let matchId = 1;
+            let currentRoundMatches = [];
+            let previousRoundMatches = [];
+
+            // Seed teams and byes into Round 1
+            let slots = [];
+            let teamIdx = 0;
+            for(let i=0; i<powerOfTwo; i++) {
+                if(i < numByes) {
+                    slots.push('Bye');
+                } else {
+                    slots.push(state.teams[teamIdx++] || 'Bye');
+                }
+            }
+
+            // Generate Round 1 (Leaves)
+            for (let i = 0; i < powerOfTwo; i += 2) {
+                let home = slots[i];
+                let away = slots[i+1];
+                let isByeMatch = (home === 'Bye' || away === 'Bye');
+                let winner = isByeMatch ? (home === 'Bye' ? away : home) : null;
+
+                let match = {
+                    id: matchId++,
+                    round: 1,
+                    home: home,
+                    away: away,
+                    homeScore1: null, awayScore1: null,
+                    homeScore2: null, awayScore2: null,
+                    isFinished: isByeMatch,
+                    winner: winner,
+                    nextMatchId: null,
+                    nextSlot: null, // 'home' or 'away'
+                    isBye: isByeMatch
+                };
+                currentRoundMatches.push(match);
+                state.matches.push(match);
+            }
+
+            state.bracketNodes.push([...currentRoundMatches]);
+            previousRoundMatches = [...currentRoundMatches];
+
+            // Generate subsequent rounds
+            for (let round = 2; round <= totalRounds; round++) {
+                currentRoundMatches = [];
+                const matchesThisRound = previousRoundMatches.length / 2;
+                
+                for (let i = 0; i < matchesThisRound; i++) {
+                    let match = {
+                        id: matchId++,
+                        round: round,
+                        home: 'TBD',
+                        away: 'TBD',
+                        homeScore1: null, awayScore1: null,
+                        homeScore2: null, awayScore2: null,
+                        isFinished: false,
+                        winner: null,
+                        nextMatchId: null,
+                        nextSlot: null,
+                        isBye: false
+                    };
+                    
+                    // Link previous round to this match
+                    const prev1 = previousRoundMatches[i * 2];
+                    const prev2 = previousRoundMatches[i * 2 + 1];
+                    prev1.nextMatchId = match.id;
+                    prev1.nextSlot = 'home';
+                    prev2.nextMatchId = match.id;
+                    prev2.nextSlot = 'away';
+
+                    // If previous matches were Byes, advance automatically
+                    if (prev1.winner) match.home = prev1.winner;
+                    if (prev2.winner) match.away = prev2.winner;
+                    
+                    if (match.home !== 'TBD' && match.away !== 'TBD' && (match.home === 'Bye' || match.away === 'Bye')) {
+                        match.isBye = true;
+                        match.isFinished = true;
+                        match.winner = match.home === 'Bye' ? match.away : match.home;
+                    }
+
+                    currentRoundMatches.push(match);
+                    state.matches.push(match);
+                }
+                state.bracketNodes.push([...currentRoundMatches]);
+                previousRoundMatches = [...currentRoundMatches];
+            }
+            
+            // Initialize roundAggregate defaults to false for all generated rounds
+            for (let r = 1; r <= totalRounds; r++) {
+                state.roundAggregate[r] = false;
+            }
+        }
+
+        // --- RENDER LOGIC ---
+        function renderTournament() {
+            const vizContainer = document.getElementById('tourney-visualization');
+            const matchesContainer = document.getElementById('tourney-matches');
+            
+            if (state.type === 'league') {
+                calculateLeagueStandings();
+                vizContainer.innerHTML = generateLeagueTableHTML();
+                matchesContainer.innerHTML = generateLeagueInputsHTML();
+            } else {
+                updateBracketTree(); // Make sure winners carry over
+                vizContainer.innerHTML = generateBracketVizHTML();
+                matchesContainer.innerHTML = generateBracketInputsHTML();
+            }
+        }
+
+        // LEAGUE RENDERING
+        function calculateLeagueStandings() {
+            state.standings = state.teams.map(team => ({
+                name: team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
+            }));
+
+            state.matches.forEach(m => {
+                if (m.isFinished) {
+                    const homeTeam = state.standings.find(t => t.name === m.home);
+                    const awayTeam = state.standings.find(t => t.name === m.away);
+                    
+                    homeTeam.p++; awayTeam.p++;
+                    homeTeam.gf += m.homeScore; awayTeam.gf += m.awayScore;
+                    homeTeam.ga += m.awayScore; awayTeam.ga += m.homeScore;
+                    
+                    if (m.homeScore > m.awayScore) {
+                        homeTeam.w++; homeTeam.pts += 3;
+                        awayTeam.l++;
+                    } else if (m.homeScore < m.awayScore) {
+                        awayTeam.w++; awayTeam.pts += 3;
+                        homeTeam.l++;
+                    } else {
+                        homeTeam.d++; awayTeam.d++;
+                        homeTeam.pts += 1; awayTeam.pts += 1;
+                    }
+                }
+            });
+
+            state.standings.forEach(t => t.gd = t.gf - t.ga);
+            
+            // Sort by Points, then GD, then GF, then Name
+            state.standings.sort((a, b) => {
+                if (b.pts !== a.pts) return b.pts - a.pts;
+                if (b.gd !== a.gd) return b.gd - a.gd;
+                if (b.gf !== a.gf) return b.gf - a.gf;
+                return a.name.localeCompare(b.name);
+            });
+        }
+
+        function generateLeagueTableHTML() {
+            let rows = state.standings.map((t, i) => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
+                    <td class="py-3 px-4 font-bold text-gray-500">${i + 1}</td>
+                    <td class="py-3 px-4 font-medium text-gray-900">${t.name}</td>
+                    <td class="py-3 px-4 text-center">${t.p}</td>
+                    <td class="py-3 px-4 text-center">${t.w}</td>
+                    <td class="py-3 px-4 text-center">${t.d}</td>
+                    <td class="py-3 px-4 text-center">${t.l}</td>
+                    <td class="py-3 px-4 text-center text-gray-500 hidden sm:table-cell">${t.gf}</td>
+                    <td class="py-3 px-4 text-center text-gray-500 hidden sm:table-cell">${t.ga}</td>
+                    <td class="py-3 px-4 text-center font-medium">${t.gd > 0 ? '+'+t.gd : t.gd}</td>
+                    <td class="py-3 px-4 text-center font-bold text-brand-900">${t.pts}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                            <th class="py-3 px-4 w-12">#</th>
+                            <th class="py-3 px-4">Team</th>
+                            <th class="py-3 px-4 text-center w-12" title="Played">P</th>
+                            <th class="py-3 px-4 text-center w-12" title="Won">W</th>
+                            <th class="py-3 px-4 text-center w-12" title="Drawn">D</th>
+                            <th class="py-3 px-4 text-center w-12" title="Lost">L</th>
+                            <th class="py-3 px-4 text-center w-12 hidden sm:table-cell" title="Goals For">GF</th>
+                            <th class="py-3 px-4 text-center w-12 hidden sm:table-cell" title="Goals Against">GA</th>
+                            <th class="py-3 px-4 text-center w-12" title="Goal Difference">GD</th>
+                            <th class="py-3 px-4 text-center w-16 text-brand-900" title="Points">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        function generateLeagueInputsHTML() {
+            // Group by Round
+            const rounds = [...new Set(state.matches.map(m => m.round))];
+            
+            return rounds.map(r => {
+                const roundMatches = state.matches.filter(m => m.round === r);
+                const matchesHtml = roundMatches.map(m => `
+                    <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 px-2 rounded transition">
+                        <div class="text-right w-1/3 font-medium flex items-center justify-end gap-2 ${m.homeScore > m.awayScore ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                            ${m.home}
+                        </div>
+                        <div class="flex items-center gap-2 px-4 shrink-0">
+                            <input type="number" min="0" class="w-12 h-10 text-center border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white shadow-inner" 
+                                value="${m.homeScore !== null ? m.homeScore : ''}" 
+                                onchange="updateLeagueScore(${m.id}, 'home', this.value)">
+                            <span class="text-gray-400 font-bold text-sm">-</span>
+                            <input type="number" min="0" class="w-12 h-10 text-center border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white shadow-inner" 
+                                value="${m.awayScore !== null ? m.awayScore : ''}" 
+                                onchange="updateLeagueScore(${m.id}, 'away', this.value)">
+                        </div>
+                        <div class="text-left w-1/3 font-medium flex items-center justify-start gap-2 ${m.awayScore > m.homeScore ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                            ${m.away}
+                        </div>
+                    </div>
+                `).join('');
+                
+                return `
+                    <div class="mb-8 last:mb-0">
+                        <h4 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 border-b pb-1">Matchday ${r}</h4>
+                        <div class="max-w-2xl mx-auto">${matchesHtml}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateLeagueScore(matchId, side, value) {
+            const match = state.matches.find(m => m.id === matchId);
+            const val = value === '' ? null : parseInt(value);
+            
+            if (side === 'home') match.homeScore = val;
+            else match.awayScore = val;
+
+            match.isFinished = (match.homeScore !== null && match.awayScore !== null);
+            renderTournament();
+        }
+
+
+        // BRACKET RENDERING
+        function updateBracketTree() {
+            // Propagate winners to next matches
+            state.matches.forEach(m => {
+                if (m.isFinished && !m.isBye) {
+                    let hTotal = m.homeScore1 + (m.homeScore2 || 0);
+                    let aTotal = m.awayScore1 + (m.awayScore2 || 0);
+                    
+                    if (hTotal > aTotal) m.winner = m.home;
+                    else if (aTotal > hTotal) m.winner = m.away;
+                    else m.winner = null; // Tie, needs manual resolution or more goals
+                }
+                
+                if (m.winner && m.nextMatchId) {
+                    const nextMatch = state.matches.find(nx => nx.id === m.nextMatchId);
+                    if (nextMatch) {
+                        if (m.nextSlot === 'home') nextMatch.home = m.winner;
+                        else nextMatch.away = m.winner;
+                    }
+                }
+            });
+        }
+
+        function generateBracketVizHTML() {
+            // Re-group matches into bracketNodes based on current state.matches
+            const maxRound = Math.max(...state.matches.map(m => m.round));
+            let html = '<div class="flex gap-8 justify-start lg:justify-center items-center min-w-max px-4">';
+
+            for (let r = 1; r <= maxRound; r++) {
+                const roundMatches = state.matches.filter(m => m.round === r);
+                const isAggregate = state.roundAggregate[r];
+                let roundHtml = `<div class="flex flex-col gap-6 w-64 justify-center relative">
+                                    <div class="text-center font-bold text-gray-400 text-xs uppercase mb-2">Round ${r}</div>`;
+                
+                roundMatches.forEach(m => {
+                    const hTot = isAggregate ? ((m.homeScore1 !== null ? m.homeScore1 : 0) + (m.homeScore2 !== null ? m.homeScore2 : 0)) : m.homeScore1;
+                    const aTot = isAggregate ? ((m.awayScore1 !== null ? m.awayScore1 : 0) + (m.awayScore2 !== null ? m.awayScore2 : 0)) : m.awayScore1;
+                    
+                    const hStr = hTot !== null && !m.isBye ? hTot : (m.isBye ? '-' : '');
+                    const aStr = aTot !== null && !m.isBye ? aTot : (m.isBye ? '-' : '');
+                    
+                    const homeBold = m.winner === m.home ? 'font-bold text-gray-900' : 'text-gray-600';
+                    const awayBold = m.winner === m.away ? 'font-bold text-gray-900' : 'text-gray-600';
+
+                    roundHtml += `
+                        <div class="bg-white border border-gray-300 rounded shadow-sm text-sm overflow-hidden flex flex-col relative z-10 ${m.nextMatchId ? 'bracket-connector' : ''}">
+                            <div class="flex justify-between items-center px-3 py-2 border-b border-gray-100 ${m.home !== 'TBD' && m.home !== 'Bye' ? 'bg-gray-50' : ''}">
+                                <span class="truncate pr-2 ${homeBold}">${m.home === 'Bye' ? '<span class="italic text-gray-400">Bye</span>' : m.home}</span>
+                                <span class="font-mono bg-white px-2 py-0.5 border border-gray-200 rounded shrink-0 ${homeBold}">${hStr}</span>
+                            </div>
+                            <div class="flex justify-between items-center px-3 py-2 ${m.away !== 'TBD' && m.away !== 'Bye' ? 'bg-gray-50' : ''}">
+                                <span class="truncate pr-2 ${awayBold}">${m.away === 'Bye' ? '<span class="italic text-gray-400">Bye</span>' : m.away}</span>
+                                <span class="font-mono bg-white px-2 py-0.5 border border-gray-200 rounded shrink-0 ${awayBold}">${aStr}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                roundHtml += '</div>';
+                html += roundHtml;
+                
+                // Add connecting lines area if not last round
+                if (r < maxRound) {
+                   html += `<div class="w-8"></div>`; // spacing handled by gap-8 mostly, just conceptual
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function generateBracketInputsHTML() {
+            const maxRound = Math.max(...state.matches.map(m => m.round));
+            let html = '';
+            
+            for (let r = 1; r <= maxRound; r++) {
+                const roundMatches = state.matches.filter(m => m.round === r && !m.isBye && m.home !== 'TBD' && m.away !== 'TBD');
+                if (roundMatches.length === 0) continue;
+
+                const isAggregate = state.roundAggregate[r];
+
+                html += `<div class="mb-8 last:mb-0">
+                            <div class="flex items-center justify-between border-b pb-1 mb-3">
+                                <h4 class="font-bold text-gray-500 uppercase tracking-wider text-xs">Round ${r}</h4>
+                                <label class="flex items-center space-x-2 cursor-pointer text-xs text-gray-600 font-medium">
+                                    <input type="checkbox" class="form-checkbox h-3 w-3 text-brand-900 rounded border-gray-300 focus:ring-gray-500" ${isAggregate ? 'checked' : ''} onchange="toggleRoundAggregate(${r}, this.checked)">
+                                    <span>2-Legged Match</span>
+                                </label>
+                            </div>
+                            <div class="max-w-3xl mx-auto flex flex-col gap-3">`;
+
+                roundMatches.forEach(m => {
+                    let inputRow = '';
+                    if (isAggregate) {
+                        inputRow = `
+                            <div class="flex flex-col w-full gap-2">
+                                <div class="flex items-center justify-center gap-2 sm:gap-4 w-full">
+                                    <span class="text-[10px] text-gray-400 uppercase font-bold w-10 text-right shrink-0">Leg 1</span>
+                                    <div class="flex-1 text-right truncate font-medium ${m.winner === m.home ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                                        ${m.home}
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <input type="number" min="0" class="w-12 h-10 text-center text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 bg-white" value="${m.homeScore1 !== null ? m.homeScore1 : ''}" onchange="updateBracketScore(${m.id}, 'h1', this.value)">
+                                        <span class="text-gray-400 font-bold">-</span>
+                                        <input type="number" min="0" class="w-12 h-10 text-center text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 bg-white" value="${m.awayScore1 !== null ? m.awayScore1 : ''}" onchange="updateBracketScore(${m.id}, 'a1', this.value)">
+                                    </div>
+                                    <div class="flex-1 text-left truncate font-medium ${m.winner === m.away ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                                        ${m.away}
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-center gap-2 sm:gap-4 w-full">
+                                    <span class="text-[10px] text-gray-400 uppercase font-bold w-10 text-right shrink-0">Leg 2</span>
+                                    <div class="flex-1 text-right truncate font-medium ${m.winner === m.home ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                                        ${m.home}
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <input type="number" min="0" class="w-12 h-10 text-center text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 bg-white" value="${m.homeScore2 !== null ? m.homeScore2 : ''}" onchange="updateBracketScore(${m.id}, 'h2', this.value)">
+                                        <span class="text-gray-400 font-bold">-</span>
+                                        <input type="number" min="0" class="w-12 h-10 text-center text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 bg-white" value="${m.awayScore2 !== null ? m.awayScore2 : ''}" onchange="updateBracketScore(${m.id}, 'a2', this.value)">
+                                    </div>
+                                    <div class="flex-1 text-left truncate font-medium ${m.winner === m.away ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                                        ${m.away}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        inputRow = `
+                            <div class="flex items-center justify-center gap-2 sm:gap-4 w-full">
+                                <div class="flex-1 text-right truncate font-medium ${m.winner === m.home ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                                    ${m.home}
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <input type="number" min="0" class="w-12 h-10 text-center text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 bg-white" value="${m.homeScore1 !== null ? m.homeScore1 : ''}" onchange="updateBracketScore(${m.id}, 'h1', this.value)">
+                                    <span class="text-gray-400 font-bold">-</span>
+                                    <input type="number" min="0" class="w-12 h-10 text-center text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 bg-white" value="${m.awayScore1 !== null ? m.awayScore1 : ''}" onchange="updateBracketScore(${m.id}, 'a1', this.value)">
+                                </div>
+                                <div class="flex-1 text-left truncate font-medium ${m.winner === m.away ? 'text-brand-900 font-bold' : 'text-gray-700'}">
+                                    ${m.away}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let tiebreakerNote = '';
+                    if (m.isFinished && m.winner === null) {
+                        tiebreakerNote = `<div class="w-full text-center text-xs text-orange-600 mt-4 font-medium bg-orange-50 py-2 rounded">Tie detected! Adjust scores to determine a winner to advance.</div>`;
+                    }
+
+                    html += `
+                        <div class="flex flex-col p-4 border border-gray-200 bg-gray-50 rounded-lg w-full shadow-sm hover:shadow transition-shadow">
+                            ${inputRow}
+                            ${tiebreakerNote}
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+            return html || '<p class="text-gray-400 text-sm italic">Waiting for previous rounds to complete.</p>';
+        }
+
+        function toggleRoundAggregate(round, isChecked) {
+            state.roundAggregate[round] = isChecked;
+            
+            // Re-evaluate finished status and clear leg 2 scores if turning off
+            state.matches.filter(m => m.round === round).forEach(match => {
+                if (!isChecked) {
+                    match.homeScore2 = null;
+                    match.awayScore2 = null;
+                    match.isFinished = (match.homeScore1 !== null && match.awayScore1 !== null);
+                } else {
+                    match.isFinished = (match.homeScore1 !== null && match.awayScore1 !== null && match.homeScore2 !== null && match.awayScore2 !== null);
+                }
+                clearDownstream(match.id);
+            });
+            renderTournament();
+        }
+
+        function updateBracketScore(matchId, field, value) {
+            const match = state.matches.find(m => m.id === matchId);
+            const val = value === '' ? null : parseInt(value);
+            const isAggregate = state.roundAggregate[match.round];
+            
+            if (field === 'h1') match.homeScore1 = val;
+            if (field === 'a1') match.awayScore1 = val;
+            if (field === 'h2') match.homeScore2 = val;
+            if (field === 'a2') match.awayScore2 = val;
+
+            if (isAggregate) {
+                match.isFinished = (match.homeScore1 !== null && match.awayScore1 !== null && match.homeScore2 !== null && match.awayScore2 !== null);
+            } else {
+                match.isFinished = (match.homeScore1 !== null && match.awayScore1 !== null);
+            }
+            
+            // Clear future matches that depend on this one if the result changes drastically
+            clearDownstream(match.id);
+            
+            renderTournament();
+        }
+
+        function clearDownstream(matchId) {
+            const match = state.matches.find(m => m.id === matchId);
+            if (match && match.nextMatchId) {
+                const next = state.matches.find(n => n.id === match.nextMatchId);
+                if (next) {
+                    if (match.nextSlot === 'home') next.home = 'TBD';
+                    else next.away = 'TBD';
+                    next.homeScore1 = null; next.awayScore1 = null;
+                    next.homeScore2 = null; next.awayScore2 = null;
+                    next.isFinished = false;
+                    next.winner = null;
+                    clearDownstream(next.id);
+                }
+            }
+        }
+
+        // --- EXPORT ---
+        function exportData() {
+            let text = `${state.type === 'league' ? 'League Standings' : 'Bracket Results'}\n\n`;
+            
+            if (state.type === 'league') {
+                text += "Rank | Team | P | W | D | L | GD | Pts\n";
+                text += "--------------------------------------\n";
+                state.standings.forEach((t, i) => {
+                    text += `${i+1}. ${t.name} | ${t.p} | ${t.w} | ${t.d} | ${t.l} | ${t.gd>0?'+':''}${t.gd} | ${t.pts}\n`;
+                });
+            } else {
+                state.matches.filter(m => !m.isBye && m.home !== 'TBD').forEach(m => {
+                    const isAgg = state.roundAggregate[m.round];
+                    const hScore = isAgg ? `${m.homeScore1||0}+${m.homeScore2||0}` : m.homeScore1;
+                    const aScore = isAgg ? `${m.awayScore1||0}+${m.awayScore2||0}` : m.awayScore1;
+                    text += `Round ${m.round}: ${m.home} [${hScore !== null ? hScore : 'TBD'}] vs [${aScore !== null ? aScore : 'TBD'}] ${m.away}\n`;
+                });
+            }
+
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Results copied to clipboard!");
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // --- DASHBOARD & SAVING ---
+        async function showDashboard() {
+            showView('view-dashboard');
+            if (currentUser) {
+                await loadDashboard();
+            }
+        }
+
+        async function loadDashboard() {
+            if (!currentUser) return;
+            
+            const listEl = document.getElementById('dashboard-list');
+            const emptyEl = document.getElementById('dashboard-empty');
+            const loadingEl = document.getElementById('dashboard-loading');
+            
+            listEl.innerHTML = '';
+            emptyEl.classList.add('hidden');
+            loadingEl.classList.remove('hidden');
+
+            try {
+                const path = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'tournaments');
+                const querySnapshot = await getDocs(path);
+                loadingEl.classList.add('hidden');
+                
+                if (querySnapshot.empty) {
+                    emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                window._loadedTournaments = {};
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    
+                    // Parse bracketNodes if it was serialized as a string to bypass Firestore's nested array limit
+                    if (typeof data.bracketNodes === 'string') {
+                        try {
+                            data.bracketNodes = JSON.parse(data.bracketNodes);
+                        } catch (e) {
+                            console.error("Failed to parse bracket nodes", e);
+                            data.bracketNodes = [];
+                        }
+                    }
+
+                    window._loadedTournaments[docSnap.id] = data;
+                    
+                    const dateStr = data.updatedAt ? new Date(data.updatedAt).toLocaleDateString() : 'Unknown date';
+                    const typeLabel = data.type === 'league' ? 'League' : 'Bracket';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'bg-white border border-gray-200 rounded-lg p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition';
+                    card.innerHTML = `
+                        <div class="mb-4">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-bold text-lg text-gray-900 truncate pr-2">${data.name}</h4>
+                                <span class="bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">${typeLabel}</span>
+                            </div>
+                            <p class="text-sm text-gray-500">${data.teams.length} Participants • Updated ${dateStr}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="resumeTournament('${docSnap.id}')" class="flex-1 bg-brand-900 text-white text-sm font-medium py-2 rounded hover:bg-gray-800 transition">Open</button>
+                            <button onclick="deleteTournament('${docSnap.id}')" class="text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-200 hover:bg-red-50 px-3 rounded transition" title="Delete">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+            } catch (error) {
+                console.error("Error loading dashboard", error);
+                loadingEl.classList.add('hidden');
+                emptyEl.classList.remove('hidden');
+            }
+        }
+
+        async function saveTournament() {
+            if (!currentUser) return;
+            
+            const btn = document.getElementById('save-status');
+            
+            const dataToSave = {
+                name: state.name,
+                type: state.type,
+                teams: state.teams,
+                options: state.options,
+                roundAggregate: state.roundAggregate,
+                matches: state.matches,
+                bracketNodes: JSON.stringify(state.bracketNodes), // Serialize nested array for Firestore
+                standings: state.standings,
+                updatedAt: new Date().toISOString()
+            };
+
+            const basePath = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'tournaments');
+            
+            try {
+                if (state.id) {
+                    await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'tournaments', state.id), dataToSave);
+                } else {
+                    // Max 5 Tournaments Validation
+                    const querySnapshot = await getDocs(basePath);
+                    if (querySnapshot.size >= 5) {
+                        btn.innerText = "Max 5 saved tournaments!";
+                        btn.classList.remove('hidden', 'text-green-600');
+                        btn.classList.add('text-red-600');
+                        setTimeout(() => {
+                            btn.classList.add('hidden');
+                            btn.classList.remove('text-red-600');
+                            btn.classList.add('text-green-600');
+                        }, 4000);
+                        return; // Abort saving
+                    }
+
+                    const docRef = await addDoc(basePath, dataToSave);
+                    state.id = docRef.id;
+                }
+                
+                btn.innerText = "Saved!";
+                btn.classList.remove('hidden', 'text-red-600');
+                btn.classList.add('text-green-600');
+                setTimeout(() => btn.classList.add('hidden'), 3000);
+            } catch (error) {
+                console.error("Error saving tournament", error);
+                btn.innerText = "Error saving";
+                btn.classList.remove('text-green-600');
+                btn.classList.add('text-red-600');
+                btn.classList.remove('hidden');
+                setTimeout(() => {
+                    btn.classList.add('hidden');
+                    btn.classList.remove('text-red-600');
+                    btn.classList.add('text-green-600');
+                }, 3000);
+            }
+        }
+
+        function resumeTournament(id) {
+            const data = window._loadedTournaments[id];
+            if (!data) return;
+
+            state.id = id;
+            state.name = data.name;
+            state.type = data.type;
+            state.teams = data.teams;
+            state.options = data.options;
+            state.roundAggregate = data.roundAggregate || {};
+            state.matches = data.matches;
+            state.bracketNodes = data.bracketNodes;
+            state.standings = data.standings;
+
+            document.getElementById('tourney-title').innerText = state.name;
+            document.getElementById('tourney-subtitle').innerText = state.type === 'league' ? 'Round-Robin League' : 'Knockout Bracket';
+            
+            showView('view-tournament');
+            renderTournament();
+        }
+
+        async function deleteTournament(id) {
+            if (!currentUser) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'tournaments', id));
+                loadDashboard(); // Refresh
+            } catch (error) {
+                console.error("Error deleting", error);
+            }
+        }
+
+        // --- FEEDBACK & SUBSCRIPTION HANDLING ---
+        function openFeedback() {
+            document.getElementById('modal-feedback').classList.remove('hidden');
+        }
+        
+        function closeFeedback() {
+            document.getElementById('modal-feedback').classList.add('hidden');
+            document.getElementById('feedback-text').value = '';
+            document.getElementById('feedback-status').classList.add('hidden');
+        }
+
+        async function submitFeedback(e) {
+            e.preventDefault();
+            if (!currentUser) return; // Needs to be initialized
+
+            const text = document.getElementById('feedback-text').value.trim();
+            if (!text) return;
+            
+            const btn = document.getElementById('feedback-btn');
+            const status = document.getElementById('feedback-status');
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+            
+            try {
+                // Saving feedback to the user's secure database collection
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'feedback'), {
+                    message: text,
+                    userId: currentUser.uid,
+                    timestamp: new Date().toISOString()
+                });
+                status.innerText = "Thanks for your feedback!";
+                status.classList.remove('hidden', 'text-red-600');
+                status.classList.add('text-green-600');
+                setTimeout(closeFeedback, 2000);
+            } catch (error) {
+                console.error("Feedback error", error);
+                status.innerText = "Error sending feedback.";
+                status.classList.remove('hidden', 'text-green-600');
+                status.classList.add('text-red-600');
+            }
+            btn.disabled = false;
+            btn.innerText = 'Submit';
+        }
+
+        function openSubscribe() {
+            document.getElementById('modal-subscribe').classList.remove('hidden');
+        }
+
+        function closeSubscribe() {
+            document.getElementById('modal-subscribe').classList.add('hidden');
+            document.getElementById('subscribe-email').value = '';
+            document.getElementById('subscribe-status').classList.add('hidden');
+        }
+
+        async function submitSubscribe(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const email = document.getElementById('subscribe-email').value.trim();
+            if (!email) return;
+            
+            const btn = document.getElementById('subscribe-btn');
+            const status = document.getElementById('subscribe-status');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+            
+            try {
+                // Saving subscriber emails to the user's secure database collection
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'subscribers'), {
+                    email: email,
+                    userId: currentUser.uid,
+                    timestamp: new Date().toISOString()
+                });
+                status.innerText = "Successfully subscribed!";
+                status.classList.remove('hidden', 'text-red-600');
+                status.classList.add('text-green-600');
+                setTimeout(closeSubscribe, 2000);
+            } catch (error) {
+                console.error("Subscribe error", error);
+                status.innerText = "Error saving email.";
+                status.classList.remove('hidden', 'text-green-600');
+                status.classList.add('text-red-600');
+            }
+            btn.disabled = false;
+            btn.innerText = 'Subscribe';
+        }
+
+        // --- SHARE POPUP TIMER ---
+        function showSharePopup() {
+            const popup = document.getElementById('share-popup');
+            if (popup) {
+                popup.classList.remove('translate-y-[150%]', 'opacity-0', 'pointer-events-none');
+                popup.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+            }
+        }
+
+        function closeSharePopup() {
+            const popup = document.getElementById('share-popup');
+            if (popup) {
+                popup.classList.add('translate-y-[150%]', 'opacity-0', 'pointer-events-none');
+                popup.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+            }
+        }
+
+        // Trigger the popup after 10 minutes (600,000 ms)
+        setTimeout(showSharePopup, 600000);
+
+        // --- GLOBAL BINDINGS FOR HTML EVENT LISTENERS ---
+        window.resetApp = resetApp;
+        window.startSetup = startSetup;
+        window.addTeam = addTeam;
+        window.removeTeam = removeTeam;
+        window.generateTournament = generateTournament;
+        window.updateLeagueScore = updateLeagueScore;
+        window.updateBracketScore = updateBracketScore;
+        window.toggleRoundAggregate = toggleRoundAggregate;
+        window.exportData = exportData;
+        window.showDashboard = showDashboard;
+        window.saveTournament = saveTournament;
+        window.resumeTournament = resumeTournament;
+        window.deleteTournament = deleteTournament;
+        window.openFeedback = openFeedback;
+        window.closeFeedback = closeFeedback;
+        window.submitFeedback = submitFeedback;
+        window.openSubscribe = openSubscribe;
+        window.closeSubscribe = closeSubscribe;
+        window.submitSubscribe = submitSubscribe;
+        window.closeSharePopup = closeSharePopup;
+
+    </script>
+</body>
+</html>
