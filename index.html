@@ -195,7 +195,7 @@
             <div class="pop-box p-6 mb-8" id="settings-container">
                 <h3 class="font-bold text-lg mb-4 text-pop-dark">Rules & Settings</h3>
                 
-                <div id="league-settings" class="hidden">
+                <div id="league-settings">
                     <label class="flex items-center space-x-3 cursor-pointer mb-2">
                         <input type="checkbox" id="setting-play-twice" class="pop-checkbox">
                         <span class="text-pop-dark font-medium">Play each opponent twice (Home & Away)</span>
@@ -306,11 +306,6 @@
                     Leave Feedback
                 </button>
             </div>
-
-            <button onclick="openSubscribe()" class="text-gray-500 hover:text-pop-blue transition flex items-center gap-1 mt-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                Get Email Updates
-            </button>
         </div>
         <p class="text-xs text-gray-400 mt-8">&copy; 2026 Digital Bracket Maker</p>
     </footer>
@@ -326,22 +321,6 @@
                 <div class="flex items-center justify-between">
                     <span id="feedback-status" class="text-sm hidden font-semibold px-2 py-1 rounded"></span>
                     <button type="submit" id="feedback-btn" class="pop-btn pop-btn-primary px-6 py-2 ml-auto text-sm">Submit</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Subscribe Modal -->
-    <div id="modal-subscribe" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-        <div class="pop-box max-w-md w-full p-6 relative">
-            <button onclick="closeSubscribe()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-xl transition">&times;</button>
-            <h3 class="text-xl font-bold text-pop-dark mb-1">Stay Updated</h3>
-            <p class="text-sm text-gray-500 mb-4">Enter your email to receive news and updates about new features.</p>
-            <form onsubmit="submitSubscribe(event)">
-                <input type="email" id="subscribe-email" class="pop-input w-full p-3 mb-4 text-sm" placeholder="your.email@example.com" required>
-                <div class="flex items-center justify-between">
-                    <span id="subscribe-status" class="text-sm hidden font-semibold px-2 py-1 rounded"></span>
-                    <button type="submit" id="subscribe-btn" class="pop-btn pop-btn-primary px-6 py-2 ml-auto text-sm">Subscribe</button>
                 </div>
             </form>
         </div>
@@ -1346,45 +1325,6 @@
             btn.innerText = 'Submit';
         }
 
-        function openSubscribe() { document.getElementById('modal-subscribe').classList.remove('hidden'); }
-        function closeSubscribe() {
-            document.getElementById('modal-subscribe').classList.add('hidden');
-            document.getElementById('subscribe-email').value = '';
-            document.getElementById('subscribe-status').classList.add('hidden');
-        }
-
-        async function submitSubscribe(e) {
-            e.preventDefault();
-            if (!currentUser) return;
-
-            const email = document.getElementById('subscribe-email').value.trim();
-            if (!email) return;
-            
-            const btn = document.getElementById('subscribe-btn');
-            const status = document.getElementById('subscribe-status');
-            btn.disabled = true;
-            btn.innerText = 'Saving...';
-            
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'subscribers'), {
-                    email: email,
-                    userId: currentUser.uid,
-                    timestamp: new Date().toISOString()
-                });
-                status.innerText = "Successfully subscribed!";
-                status.classList.remove('hidden', 'text-red-600', 'bg-red-50');
-                status.classList.add('text-green-700', 'bg-green-50');
-                setTimeout(closeSubscribe, 2000);
-            } catch (error) {
-                console.error("Subscribe error", error);
-                status.innerText = "Error saving.";
-                status.classList.remove('hidden', 'text-green-700', 'bg-green-50');
-                status.classList.add('text-red-600', 'bg-red-50');
-            }
-            btn.disabled = false;
-            btn.innerText = 'Subscribe';
-        }
-
         function showSharePopup() {
             const popup = document.getElementById('share-popup');
             if (popup) {
@@ -1423,9 +1363,6 @@
         window.openFeedback = openFeedback;
         window.closeFeedback = closeFeedback;
         window.submitFeedback = submitFeedback;
-        window.openSubscribe = openSubscribe;
-        window.closeSubscribe = closeSubscribe;
-        window.submitSubscribe = submitSubscribe;
         window.closeSharePopup = closeSharePopup;
 
     </script>
